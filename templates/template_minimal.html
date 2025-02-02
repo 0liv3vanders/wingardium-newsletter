@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Newsletter Minimaliste</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #fafafa;
+            font-family: Arial, sans-serif;
+            color: #444;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 20px;
+        }
+        .title {
+            font-weight: bold;
+            font-size: 24px;
+            margin: 0 0 20px;
+            text-align: center;
+        }
+        .content {
+            line-height: 1.5;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            text-align: center;
+            color: #999;
+        }
+        .footer a {
+            color: #999;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="title">Ma Newsletter</h1>
+    <div class="content">
+        <!-- Le contenu principal -->
+        {MESSAGE}
+    </div>
+    <div class="footer">
+        <p><a href="{UNSUBSCRIBE_LINK}">Se désinscrire</a></p>
+        <p>&copy; <?php echo date("Y"); ?>. Merci pour votre lecture.</p>
+    </div>
+</div>
+</body>
+</html>
