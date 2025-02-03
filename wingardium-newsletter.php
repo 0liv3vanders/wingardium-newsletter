@@ -3,7 +3,7 @@
 Plugin Name: Wingardium Newsletter
 Plugin URI: https://github.com/0liv3vanders/
 Description: Un plugin newsletter magique qui propulse vos emails, gère vos abonnés, envoie des potions SMTP, propose des templates ensorcelés avec aperçu en direct, et plus encore. Adieu la routine, bonjour l’enchantement !
-Version: 1
+Version: 1.1
 Author: 0liv3vanders
 Author URI: https://github.com/0liv3vanders/
 License: GPL2
@@ -20,7 +20,10 @@ class WingardiumNewsletter {
     private static $instance = null;
     private $table_subscribers;
     private $table_logs;
-    private static $subscribe_message = ''; // Affiché en front après inscription
+
+    // On ne se sert plus d’une variable statique pour le message d’alerte,
+    // on va gérer ça autrement avec des modales.
+    // private static $subscribe_message = '';
 
     /**
      * Singleton
@@ -75,6 +78,10 @@ class WingardiumNewsletter {
 
         // Charger un script JS (admin) pour la recherche dynamique
         add_action('admin_enqueue_scripts', array($this, 'admin_assets'));
+
+        // ** SECTION NOUVELLE **
+        // Pour injecter en front un JS/CSS minimal nécessaire aux modales
+        add_action('wp_enqueue_scripts', array($this, 'frontend_modal_assets'));
     }
 
     /**
@@ -397,6 +404,54 @@ class WingardiumNewsletter {
             'wingardium_auto_emails_settings',
             'wingardium_auto_emails_section'
         );
+
+        // ** SECTION NOUVELLE : PARAMÈTRES DES MODALES (SUBSCRIBE / UNSUBSCRIBE) **
+        add_settings_section(
+            'wingardium_modals_section',
+            'Modales d’inscription / désinscription',
+            null,
+            'wingardium_modals_settings'
+        );
+
+        // Titre modale inscription
+        register_setting('wingardium_modals_settings', 'wingardium_modal_subscribe_title');
+        add_settings_field(
+            'wingardium_modal_subscribe_title',
+            'Titre – Modale succès inscription',
+            array($this, 'field_modal_subscribe_title_cb'),
+            'wingardium_modals_settings',
+            'wingardium_modals_section'
+        );
+
+        // Contenu modale inscription
+        register_setting('wingardium_modals_settings', 'wingardium_modal_subscribe_content');
+        add_settings_field(
+            'wingardium_modal_subscribe_content',
+            'Texte – Modale succès inscription',
+            array($this, 'field_modal_subscribe_content_cb'),
+            'wingardium_modals_settings',
+            'wingardium_modals_section'
+        );
+
+        // Titre modale désinscription
+        register_setting('wingardium_modals_settings', 'wingardium_modal_unsubscribe_title');
+        add_settings_field(
+            'wingardium_modal_unsubscribe_title',
+            'Titre – Modale succès désinscription',
+            array($this, 'field_modal_unsubscribe_title_cb'),
+            'wingardium_modals_settings',
+            'wingardium_modals_section'
+        );
+
+        // Contenu modale désinscription
+        register_setting('wingardium_modals_settings', 'wingardium_modal_unsubscribe_content');
+        add_settings_field(
+            'wingardium_modal_unsubscribe_content',
+            'Texte – Modale succès désinscription',
+            array($this, 'field_modal_unsubscribe_content_cb'),
+            'wingardium_modals_settings',
+            'wingardium_modals_section'
+        );
     }
 
     /* ---------------------------------------------------------------------
@@ -587,6 +642,34 @@ class WingardiumNewsletter {
     }
 
     /* ---------------------------------------------------------------------
+       SECTION NOUVELLE : MODALES - FIELDS
+    ---------------------------------------------------------------------- */
+    public function field_modal_subscribe_title_cb() {
+        $val = get_option('wingardium_modal_subscribe_title','Inscription réussie');
+        ?>
+        <input type="text" name="wingardium_modal_subscribe_title" value="<?php echo esc_attr($val); ?>" class="regular-text">
+        <?php
+    }
+    public function field_modal_subscribe_content_cb() {
+        $val = get_option('wingardium_modal_subscribe_content','Merci, vous êtes bien inscrit(e) à notre newsletter !');
+        ?>
+        <textarea name="wingardium_modal_subscribe_content" rows="3" class="large-text"><?php echo esc_textarea($val); ?></textarea>
+        <?php
+    }
+    public function field_modal_unsubscribe_title_cb() {
+        $val = get_option('wingardium_modal_unsubscribe_title','Désinscription confirmée');
+        ?>
+        <input type="text" name="wingardium_modal_unsubscribe_title" value="<?php echo esc_attr($val); ?>" class="regular-text">
+        <?php
+    }
+    public function field_modal_unsubscribe_content_cb() {
+        $val = get_option('wingardium_modal_unsubscribe_content','Vous êtes bien désinscrit(e) de la newsletter.');
+        ?>
+        <textarea name="wingardium_modal_unsubscribe_content" rows="3" class="large-text"><?php echo esc_textarea($val); ?></textarea>
+        <?php
+    }
+
+    /* ---------------------------------------------------------------------
        TROUVER TEMPLATES
     ---------------------------------------------------------------------- */
     private function find_templates_in_folder() {
@@ -626,7 +709,7 @@ class WingardiumNewsletter {
             // On n’injecte que sur notre page d’options
             wp_enqueue_script(
                 'wingardium-admin-search',
-                plugin_dir_url(__FILE__).'wingardium-admin-search.js', // on va créer ce fichier
+                plugin_dir_url(__FILE__).'wingardium-admin-search.js',
                 array('jquery'),
                 '1.0',
                 true
@@ -637,6 +720,15 @@ class WingardiumNewsletter {
                 'nonce'=>wp_create_nonce('wingardium_ajax_search')
             ));
         }
+    }
+
+    // ** SECTION NOUVELLE : Enqueue de CSS/JS minimal en front pour afficher les modales **
+    public function frontend_modal_assets() {
+        // Un petit CSS simple pour la modale
+        wp_enqueue_style('wingardium-modal-css', plugin_dir_url(__FILE__).'wingardium-modal.css', array(), '1.0');
+
+        // JS minimal qui gère l’ouverture/fermeture
+        wp_enqueue_script('wingardium-modal-js', plugin_dir_url(__FILE__).'wingardium-modal.js', array('jquery'), '1.0', true);
     }
 
     /**
@@ -682,6 +774,7 @@ class WingardiumNewsletter {
                 <a href="#wingardium-tab-templates" class="nav-tab">Templates</a>
                 <a href="#wingardium-tab-emailsettings" class="nav-tab">Param. d’Envoi</a>
                 <a href="#wingardium-tab-autoemails" class="nav-tab">Emails Inscr./Désinscr.</a>
+                <a href="#wingardium-tab-modals" class="nav-tab">Modales</a>
                 <a href="#wingardium-tab-historique" class="nav-tab">Historique</a>
             </h2>
 
@@ -812,7 +905,18 @@ class WingardiumNewsletter {
                 </form>
             </div>
 
-            <!-- Onglet 7 : Historique -->
+            <!-- ** Onglet 7 : Modales (NOUVEAU) -->
+            <div id="wingardium-tab-modals" class="wingardium-tab-content" style="display:none;">
+                <form method="post" action="options.php">
+                    <?php
+                    settings_fields('wingardium_modals_settings');
+                    do_settings_sections('wingardium_modals_settings');
+                    submit_button();
+                    ?>
+                </form>
+            </div>
+
+            <!-- Onglet 8 : Historique -->
             <div id="wingardium-tab-historique" class="wingardium-tab-content" style="display:none;">
                 <h2>Historique des Newsletters</h2>
                 <table class="widefat">
@@ -840,7 +944,6 @@ class WingardiumNewsletter {
             </div>
         </div>
 
-        <!-- Script JS pour onglets / config SMTP est dans admin_assets -->
         <script>
             (function(){
                 const tabs = document.querySelectorAll('.nav-tab');
@@ -946,7 +1049,7 @@ class WingardiumNewsletter {
     }
 
     /* ---------------------------------------------------------------------
-       AFFICHAGE + IFRAME + FORM EDDIT : TEMPLATES
+       AFFICHAGE + IFRAME + FORM EDIT : TEMPLATES
     ---------------------------------------------------------------------- */
     private function show_templates_preview($search = '') {
         $templates = $this->find_templates_in_folder();
@@ -1045,7 +1148,7 @@ class WingardiumNewsletter {
 
         if(isset($_POST['template_slug'], $_POST['template_content'])){
             $slug = sanitize_text_field($_POST['template_slug']);
-            $new_content = wp_kses_post($_POST['template_content']);
+            $new_content = wp_unslash($_POST['template_content']);
 
             $file_path = plugin_dir_path(__FILE__).'templates/template_'.$slug.'.html';
             if(file_exists($file_path)){
@@ -1071,12 +1174,18 @@ class WingardiumNewsletter {
                 $email = sanitize_email($_POST['wingardium_email']);
                 if(is_email($email)){
                     $this->subscribe_email($email);
+                    // On va ajouter un paramètre pour déclencher la modale d’inscription
+                    wp_redirect(add_query_arg('wingardium_subscribed','1', remove_query_arg('wingardium_unsubscribed')));
+                    exit;
                 } else {
-                    self::$subscribe_message = "Adresse e-mail invalide.";
+                    // En cas d’erreur on peut faire un autre param. (ex: wingardium_subscribe_error=1)
+                    wp_redirect(add_query_arg('wingardium_subscribe_error','1'));
+                    exit;
                 }
             }
         }
     }
+
     private function subscribe_email($email) {
         global $wpdb;
 
@@ -1085,7 +1194,7 @@ class WingardiumNewsletter {
             $email
         ));
         if($exists){
-            self::$subscribe_message = "Vous êtes déjà inscrit(e) à la newsletter.";
+            // L’utilisateur était déjà abonné
             return;
         }
         $token = wp_generate_password(20, false, false);
@@ -1099,7 +1208,6 @@ class WingardiumNewsletter {
             array('%s','%s','%s')
         );
         if($res!==false){
-            self::$subscribe_message = "Merci, vous êtes bien inscrit(e) !";
             // Envoi email d’inscription
             $this->send_custom_email(
                 $email,
@@ -1112,14 +1220,19 @@ class WingardiumNewsletter {
             );
         }
     }
+
     public function handle_unsubscribe_request() {
         if(isset($_GET['wingardium_unsubscribe'])){
             $token = sanitize_text_field($_GET['wingardium_unsubscribe']);
             if(!empty($token)){
                 $this->unsubscribe_by_token($token);
+                // Après désinscription, on redirige pour afficher la modale
+                wp_redirect(add_query_arg('wingardium_unsubscribed','1', remove_query_arg('wingardium_subscribed')));
+                exit;
             }
         }
     }
+
     public function handle_admin_unsubscribe() {
         if(!current_user_can('manage_options')) return;
         if(isset($_GET['action']) && $_GET['action']=='admin_unsub' && isset($_GET['subscriber_id'])){
@@ -1140,6 +1253,7 @@ class WingardiumNewsletter {
             exit;
         }
     }
+
     private function unsubscribe_by_token($token) {
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$this->table_subscribers} WHERE unsubscribe_token = %s",$token));
@@ -1153,14 +1267,6 @@ class WingardiumNewsletter {
                 get_option('wingardium_unsubscribe_template','modern'),
                 array('UNSUBSCRIBE_LINK' => $this->generate_unsubscribe_link($token))
             );
-        }
-        if(!is_admin()){
-            add_action('wp_head', function(){
-                echo '<meta name="robots" content="noindex,nofollow">';
-            });
-            add_action('wp_footer', function(){
-                echo "<p style='text-align:center;margin-top:30px;font-weight:bold;'>Vous êtes bien désinscrit(e) de la newsletter.</p>";
-            });
         }
     }
 
@@ -1247,30 +1353,19 @@ class WingardiumNewsletter {
                 <?php endif; ?>
 
                 <input
-                        type="email"
-                        name="wingardium_email"
-                        id="wingardium_email"
-                        placeholder="<?php echo esc_attr($placeholder_text); ?>"
-                        required
+                    type="email"
+                    name="wingardium_email"
+                    id="wingardium_email"
+                    placeholder="<?php echo esc_attr($placeholder_text); ?>"
+                    required
                 >
                 <br><br>
                 <input type="submit" name="wingardium_subscribe_submit" value="<?php echo esc_attr($button_text); ?>">
-
-                <?php if(!empty(self::$subscribe_message)): ?>
-                    <p id="wingardium-subscribe-message" style="margin-top:10px;font-weight:bold;">
-                        <?php echo esc_html(self::$subscribe_message); ?>
-                    </p>
-                <?php endif; ?>
             </form>
         </div>
 
-        <!-- Alerte JS si inscription réussie -->
-        <?php if(self::$subscribe_message === "Merci, vous êtes bien inscrit(e) !"): ?>
-            <script>
-                alert("<?php echo esc_js(self::$subscribe_message); ?>");
-            </script>
-        <?php endif; ?>
-
+        <!-- On ne fait plus d’alert() JS ici.
+             On gère la modale s’il y a un paramètre `wingardium_subscribed=1` -->
         <?php
         return ob_get_clean();
     }
@@ -1318,3 +1413,5 @@ class WingardiumNewsletter {
 
 // Init plugin
 WingardiumNewsletter::get_instance();
+
+
