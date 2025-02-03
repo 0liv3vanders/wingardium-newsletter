@@ -724,12 +724,45 @@ class WingardiumNewsletter {
 
     // ** SECTION NOUVELLE : Enqueue de CSS/JS minimal en front pour afficher les modales **
     public function frontend_modal_assets() {
-        // Un petit CSS simple pour la modale
-        wp_enqueue_style('wingardium-modal-css', plugin_dir_url(__FILE__).'wingardium-modal.css', array(), '1.0');
+        // On charge d’abord le CSS
+        wp_enqueue_style(
+            'wingardium-modal-css',
+            plugin_dir_url(__FILE__) . 'wingardium-modal.css',
+            array(),
+            '1.0'
+        );
 
-        // JS minimal qui gère l’ouverture/fermeture
-        wp_enqueue_script('wingardium-modal-js', plugin_dir_url(__FILE__).'wingardium-modal.js', array('jquery'), '1.0', true);
+        // On charge ensuite le JS
+        wp_enqueue_script(
+            'wingardium-modal-js',
+            plugin_dir_url(__FILE__) . 'wingardium-modal.js',
+            array('jquery'),
+            '1.0',
+            true
+        );
+
+        // ICI on va injecter les données dynamiques via wp_localize_script
+
+        // 1) Récupérer côté PHP les textes personnalisés
+        $subscribe_title   = get_option('wingardium_modal_subscribe_title','Inscription réussie');
+        $subscribe_content = get_option('wingardium_modal_subscribe_content','Merci, vous êtes bien inscrit(e) !');
+
+        $unsubscribe_title   = get_option('wingardium_modal_unsubscribe_title','Désinscription confirmée');
+        $unsubscribe_content = get_option('wingardium_modal_unsubscribe_content','Vous êtes bien désinscrit(e)');
+
+        // 2) Les transmettre au script wingardium-modal-js
+        wp_localize_script(
+            'wingardium-modal-js',     // Handle du script qu’on a déclaré juste au-dessus
+            'WingardiumModalData',     // Nom de l’objet JS qui sera créé côté front
+            array(
+                'subscribeTitle'    => $subscribe_title,
+                'subscribeContent'  => $subscribe_content,
+                'unsubscribeTitle'  => $unsubscribe_title,
+                'unsubscribeContent'=> $unsubscribe_content,
+            )
+        );
     }
+
 
     /**
      * Page admin (onglets)
